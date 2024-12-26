@@ -1,24 +1,24 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-import random
 import os
+import random
 import asyncio
 
-# Get token from environment variables
+# Получение токена из переменной окружения
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 if not TOKEN:
     raise ValueError("Please set the TELEGRAM_TOKEN secret in the Secrets tab")
 
-# Данные
+# Данные для работы бота
 quotes = [
-    "You are free. You can fly anywhere and be anything you want. Your limits are only in your mind. — Richard Bach, Jonathan Livingston Seagull",
-    "The only true law is the one that leads to freedom. — Richard Bach, Jonathan Livingston Seagull",
-    "The gull that sees farther flies higher. — Richard Bach, Jonathan Livingston Seagull",
-    "Your only obligation in life is to be true to yourself. — Richard Bach, Jonathan Livingston Seagull",
-    "Perfection knows no limits. Once you reach one height, you see new, even higher ones. — Richard Bach, Jonathan Livingston Seagull",
-    "Freedom is the ability to make a choice without looking back at fear or doubt. — Richard Bach, Jonathan Livingston Seagull",
-    "The path to truth always goes through doubts. — Richard Bach, Jonathan Livingston Seagull",
-    "Every seagull knows deep down that it was born to fly. — Richard Bach, Jonathan Livingston Seagull"
+    "You are free. You can fly anywhere and be anything you want. Your limits are only in your mind. — Richard Bach",
+    "The only true law is the one that leads to freedom. — Richard Bach",
+    "The gull that sees farther flies higher. — Richard Bach",
+    "Your only obligation in life is to be true to yourself. — Richard Bach",
+    "Perfection knows no limits. — Richard Bach",
+    "Freedom is the ability to make a choice without looking back at fear or doubt. — Richard Bach",
+    "The path to truth always goes through doubts. — Richard Bach",
+    "Every seagull knows deep down that it was born to fly. — Richard Bach"
 ]
 
 memes = [
@@ -38,111 +38,99 @@ beach_coordinates = [
     "-8.671686, 115.128072 📍"
 ]
 
-# Функция для возврата в меню
+# Функция для отображения главного меню
 async def return_to_menu(update: Update) -> None:
     keyboard = [
         [InlineKeyboardButton("🎉 Посмотреть поздравление", callback_data="congratulation")],
-        [InlineKeyboardButton("😋😋😋 meme", callback_data="meme")],
-        [InlineKeyboardButton(" 🎥 гадаем на книжках", callback_data="wisdom")],
+        [InlineKeyboardButton("😋 Мем", callback_data="meme")],
+        [InlineKeyboardButton("🎥 Гадаем на книжках", callback_data="wisdom")],
         [InlineKeyboardButton("🎁 Ваш подарок", callback_data="gift")],
         [InlineKeyboardButton("⚡️ Удариться током", callback_data="shock")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выбери действие:", reply_markup=reply_markup)
 
-# Функция отображения подарка
+    if update.message:  # Для команды /start
+        await update.message.reply_text("Выбери действие:", reply_markup=reply_markup)
+    elif update.callback_query:  # Для возврата в меню
+        await update.callback_query.message.reply_text("Выбери действие:", reply_markup=reply_markup)
+
+# Функция для отображения поздравления
+async def congratulation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(text="Номер знаешь 😉")
+
+# Функция для отображения мемов
+async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    meme_url = random.choice(memes)
+    await query.edit_message_text(text=f"Вот мем для тебя: [Посмотреть мем]({meme_url})", parse_mode="Markdown")
+
+# Функция для отображения мудрых цитат
+async def wisdom(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    quote = random.choice(quotes)
+    await query.edit_message_text(text=f"Это для тебя:\n\n\"{quote}\"")
+
+# Функция для отображения подарка
 async def gift(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
     keyboard = [
         [InlineKeyboardButton("я", callback_data="smile_response")],
-        [InlineKeyboardButton("а сама то))))", callback_data="smile_response")]
+        [InlineKeyboardButton("а сама то))", callback_data="smile_response")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        text="А кто это тут у нас улыбается?))))",
-        reply_markup=reply_markup
-    )
+    await query.edit_message_text(text="А кто это тут у нас улыбается?))", reply_markup=reply_markup)
 
 # Ответ на улыбку
 async def smile_response(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
     keyboard = [
-        [InlineKeyboardButton("выбирай, где получить)))", callback_data="beach_coordinates")]
+        [InlineKeyboardButton("Выбирай, где получить))", callback_data="beach_coordinates")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.edit_message_text(
-        text="выбирай, где получить)))",
-        reply_markup=reply_markup
-    )
+    await query.edit_message_text(text="Выбирай, где получить))", reply_markup=reply_markup)
 
 # Отображение координат
 async def beach_coordinates_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
     await query.edit_message_text(text="Секундочку, выбираю лучшие пляжи...")
-
     for coord in beach_coordinates:
-        await asyncio.sleep(1)  # Задержка между отправкой координат
+        await asyncio.sleep(1)  # Задержка между сообщениями
         await query.message.reply_text(coord)
 
-    # Возвращение в меню
-    await return_to_menu(query)
-
-# Функция для отправки текста и ссылки на трек
+# Функция для "удариться током"
 async def shock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
-    # Текст с описанием момента
     message_text = (
         "⚡️ Представь, как мы слегка пьяненькие в ресторане, спустя много тостов, поздравлений и шуток, "
         "встаем танцевать, услышав знакомый мотив. Я смотрю тебе в глаза и поздравляю с твоим днем, только на другом языке, а не пайтоне))\n\n"
         "🎵 Слушай трек здесь: [O Children - Nick Cave & The Bad Seeds](https://music.yandex.ru/album/4334256/track/463836?utm_medium=copy_link)"
     )
+    await query.edit_message_text(text=message_text, parse_mode="Markdown")
 
-    # Отправляем текст с ссылкой
-    await query.edit_message_text(
-        text=message_text,
-        parse_mode="Markdown"
-    )
-
-    # Возвращение в меню
-    await return_to_menu(query)
-
-# Функция для ответа на "Посмотреть поздравления"
-async def congratulation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-
-    # Отправляем текст
-    await query.edit_message_text(
-        text="номер знаешь"
-    )
-
-    # Возвращение в меню
-    await return_to_menu(query)
-
-# Функция старта
+# Функция для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await return_to_menu(update)
 
-# Главная функция
+# Главная функция запуска
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(congratulation, pattern="congratulation"))
+    app.add_handler(CallbackQueryHandler(meme, pattern="meme"))
+    app.add_handler(CallbackQueryHandler(wisdom, pattern="wisdom"))
     app.add_handler(CallbackQueryHandler(gift, pattern="gift"))
     app.add_handler(CallbackQueryHandler(smile_response, pattern="smile_response"))
     app.add_handler(CallbackQueryHandler(beach_coordinates_handler, pattern="beach_coordinates"))
-    app.add_handler(CallbackQueryHandler(shock, pattern="shock"))  # Обработчик для "Удариться током"
-    app.add_handler(CallbackQueryHandler(congratulation, pattern="congratulation"))  # Обработчик для "Посмотреть поздравления"
+    app.add_handler(CallbackQueryHandler(shock, pattern="shock"))
 
     app.run_polling()
 
