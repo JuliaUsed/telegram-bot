@@ -1,134 +1,165 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
-import random
 import os
-import asyncio
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-if not TOKEN:
-    raise ValueError("Please set the TELEGRAM_TOKEN secret in the Variables/Secrets tab")
 
-quotes = [
-    "You are free. You can fly anywhere and be anything you want. Your limits are only in your mind. — Richard Bach, Jonathan Livingston Seagull",
-    "The only true law is the one that leads to freedom. — Richard Bach, Jonathan Livingston Seagull",
-    "The gull that sees farther flies higher. — Richard Bach, Jonathan Livingston Seagull",
-    "Your only obligation in life is to be true to yourself. — Richard Bach, Jonathan Livingston Seagull",
-    "Perfection knows no limits. Once you reach one height, you see new, even higher ones. — Richard Bach, Jonathan Livingston Seagull",
-    "Freedom is the ability to make a choice without looking back at fear or doubt. — Richard Bach, Jonathan Livingston Seagull",
-    "The path to truth always goes through doubts. — Richard Bach, Jonathan Livingston Seagull",
-    "Every seagull knows deep down that it was born to fly. — Richard Bach, Jonathan Livingston Seagull",
+# -------------------------
+# БЛАГОДАРНОСТИ (без повторов)
+# -------------------------
+
+THANKS_ALL = [
+"Спасибо, что не зассал и написал 🥇",
+"Спасибо, что ты всегда говоришь «я рядом», когда это нужно.",
+"Спасибо, что ты слышишь меня.",
+"Спасибо, что покупаешь голубику и мою любимую водичку.",
+"Спасибо за твой мозг и амбиции.",
+"Спасибо, что показал мне другую жизнь.",
+"Спасибо, что любишь меня. У тебя хороший вкус.",
+"Спасибо, что кладёшь носки в корзину (на 70%).",
+"Спасибо, что думаешь о будущем. Это секси.",
+"Спасибо, что ты это ты. Я люблю тебя.",
+"Спасибо, что остаёшься собой.",
+"Спасибо за секс посреди ночи 😄",
+"Спасибо, что забираешь меня и находишь время за кофе.",
+"Спасибо, что почти выкинул ковёр.",
+"Спасибо, что целуешь меня в татушки.",
+"Спасибо за твою нежность."
 ]
 
-memes = [
-    "https://i.postimg.cc/GhBMrcBs/IMG-3098.jpg",
-    "https://i.postimg.cc/BvJc8svp/IMG-3096.jpg",
-    "https://i.postimg.cc/23pnCNJ4/IMG-3095.jpg",
-    "https://i.postimg.cc/wBWfg3kL/IMG-3080.jpg",
-    "https://i.postimg.cc/FRLj8KC9/IMG-3078.jpg",
-    "https://i.postimg.cc/Mpp1x533/IMG-3077.jpg",
+thanks_bag = THANKS_ALL.copy()
+
+def get_random_thanks():
+    global thanks_bag
+    if not thanks_bag:
+        thanks_bag = THANKS_ALL.copy()
+    phrase = random.choice(thanks_bag)
+    thanks_bag.remove(phrase)
+    return phrase
+
+# -------------------------
+# МОМЕНТЫ (вставишь file_id позже)
+# -------------------------
+
+LOVE_ALL = [
+{
+    "photo": "example_id_1",
+    "text": "Наш первый вечер. Тогда я поняла, что всё будет по-настоящему."
+},
+{
+    "photo": "example_id_2",
+    "text": "Тот день, когда мы устали, но были счастливы."
+},
 ]
 
-beach_coordinates = [
-    "-8.705139, 115.172136 📍",
-    "-8.725354, 115.164565 📍",
-    "-8.808482, 115.146652 📍",
-    "-8.829246, 115.087490 📍",
-    "-8.671686, 115.128072 📍",
-]
+love_bag = LOVE_ALL.copy()
 
-def menu_markup() -> InlineKeyboardMarkup:
+def get_random_love():
+    global love_bag
+    if not love_bag:
+        love_bag = LOVE_ALL.copy()
+    moment = random.choice(love_bag)
+    love_bag.remove(moment)
+    return moment
+
+# -------------------------
+# МЕНЮ
+# -------------------------
+
+def main_menu():
     keyboard = [
-        [InlineKeyboardButton("🎉 Посмотреть поздравление", callback_data="congratulation")],
-        [InlineKeyboardButton("😋😋😋 meme", callback_data="meme")],
-        [InlineKeyboardButton("🎥 гадаем на книжках", callback_data="wisdom")],
-        [InlineKeyboardButton("🎁 Ваш подарок", callback_data="gift")],
-        [InlineKeyboardButton("⚡️ Удариться током", callback_data="shock")],
+        [InlineKeyboardButton("🙏 Сказать спасибо", callback_data="thanks")],
+        [InlineKeyboardButton("❤️ Рандомный момент", callback_data="love")],
+        [InlineKeyboardButton("📦 Архив", callback_data="archive")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
-async def show_menu_message(chat_message) -> None:
-    await chat_message.reply_text("Выбери действие:", reply_markup=menu_markup())
-
-async def show_menu_from_query(query) -> None:
-    await query.message.reply_text("Выбери действие:", reply_markup=menu_markup())
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await show_menu_message(update.message)
-
-async def congratulation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text("номер знаешь")
-    await show_menu_from_query(query)
-
-async def meme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    meme_url = random.choice(memes)
-    await query.message.reply_photo(photo=meme_url)
-    await show_menu_from_query(query)
-
-async def wisdom(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    quote = random.choice(quotes)
-    await query.edit_message_text(f"это все будто о тебе:\n\n“{quote}”")
-    await show_menu_from_query(query)
-
-async def gift(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
+def archive_menu():
     keyboard = [
-        [InlineKeyboardButton("я", callback_data="smile_response")],
-        [InlineKeyboardButton("а сама то))))", callback_data="smile_response")],
+        [InlineKeyboardButton("⚡️ Удариться током", callback_data="shock")],
+        [InlineKeyboardButton("🎉 Поздравление", callback_data="congrat")],
+        [InlineKeyboardButton("⬅️ Назад", callback_data="back")],
     ]
-    await query.edit_message_text(
-        "А кто это тут у нас улыбается?))))",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
+    return InlineKeyboardMarkup(keyboard)
 
-async def smile_response(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+# -------------------------
+# ОБРАБОТЧИКИ
+# -------------------------
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Выбирай 💌", reply_markup=main_menu())
+
+async def thanks_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    keyboard = [[InlineKeyboardButton("выбирай, где получить)))", callback_data="beach_coordinates")]]
-    await query.edit_message_text(
-        "выбирай, где получить)))",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
+    phrase = get_random_thanks()
+    await query.message.reply_text(phrase)
+    await query.message.reply_text("👇", reply_markup=main_menu())
 
-async def beach_coordinates_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def love_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_text("Секундочку, выбираю лучшие пляжи...")
+    moment = get_random_love()
+    await query.message.reply_photo(photo=moment["photo"], caption=moment["text"])
+    await query.message.reply_text("👇", reply_markup=main_menu())
 
-    for coord in beach_coordinates:
-        await asyncio.sleep(0.7)
-        await query.message.reply_text(coord)
-
-    await show_menu_from_query(query)
-
-async def shock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def archive_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    message_text = (
-        "⚡️ Представь, как мы слегка пьяненькие в ресторане, спустя много тостов, поздравлений и шуток, "
-        "встаем танцевать, услышав знакомый мотив, я смотрю тебе в глаза и поздравляю с твоим днем, только на другом языке, а не пайтоне))\n\n"
-        "🎵 Слушай трек здесь: https://music.yandex.ru/album/4334256/track/463836?utm_medium=copy_link"
-    )
-    await query.edit_message_text(message_text)
-    await show_menu_from_query(query)
+    await query.edit_message_text("Архив старых функций:", reply_markup=archive_menu())
 
-def main() -> None:
+async def back_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text("Выбирай 💌", reply_markup=main_menu())
+
+# Старые функции
+
+async def shock(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text(
+        "⚡️ Представь, как мы слегка пьяненькие в ресторане...\n\n"
+        "🎵 O Children — Nick Cave"
+    )
+
+async def congrat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.message.reply_text("номер знаешь 😉")
+
+# -------------------------
+# ВРЕМЕННО: ПОЛУЧЕНИЕ file_id
+# -------------------------
+
+async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    photo = update.message.photo[-1]
+    await update.message.reply_text(f"Вот твой file_id:\n{photo.file_id}")
+
+# -------------------------
+# MAIN
+# -------------------------
+
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(congratulation, pattern="^congratulation$"))
-    app.add_handler(CallbackQueryHandler(meme, pattern="^meme$"))
-    app.add_handler(CallbackQueryHandler(wisdom, pattern="^wisdom$"))
-    app.add_handler(CallbackQueryHandler(gift, pattern="^gift$"))
-    app.add_handler(CallbackQueryHandler(smile_response, pattern="^smile_response$"))
-    app.add_handler(CallbackQueryHandler(beach_coordinates_handler, pattern="^beach_coordinates$"))
-    app.add_handler(CallbackQueryHandler(shock, pattern="^shock$"))
+    app.add_handler(CallbackQueryHandler(thanks_handler, pattern="thanks"))
+    app.add_handler(CallbackQueryHandler(love_handler, pattern="love"))
+    app.add_handler(CallbackQueryHandler(archive_handler, pattern="archive"))
+    app.add_handler(CallbackQueryHandler(back_handler, pattern="back"))
+    app.add_handler(CallbackQueryHandler(shock, pattern="shock"))
+    app.add_handler(CallbackQueryHandler(congrat, pattern="congrat"))
+
+    app.add_handler(MessageHandler(filters.PHOTO, get_file_id))
 
     app.run_polling()
 
