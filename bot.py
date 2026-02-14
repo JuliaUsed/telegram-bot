@@ -29,20 +29,11 @@ THANKS_ALL = [
     "Спасибо за то, что целуешь меня в татушки",
     "Спасибо за твою нежность и чувственность, обожаю твои руки",
 ]
-thanks_bag = THANKS_ALL.copy()
-
-def get_random_thanks(context: ContextTypes.DEFAULT_TYPE) -> str:
-    global thanks_bag
-    if not thanks_bag:
-        thanks_bag = THANKS_ALL.copy()
-    msg = random.choice(thanks_bag)
-    thanks_bag.remove(msg)
-    return msg
 
 # ------------------------
 # МОМЕНТЫ (рандом фото + подпись)
 # ------------------------
-moments = [
+MOMENTS_ALL = [
     {
         "photo": "AgACAgIAAxkBAAIBrmmQXFHpvSXiRxGTUmPDPEQkYibjAAL_FGsbQQiISGgwsBXsd-VeAQADAgADeQADOgQ",
         "caption": "2024 год, я проснулась от того, что какой-то парень в интернете заставил меня извиваться на постели и думать о нем с учащенным дыханием",
@@ -168,7 +159,7 @@ moments = [
         "caption": "Наш уже типичный airport side eye 😒 но перелет реально был пиздец! Зато дальше декабрь был вкусный и Балийский! Рада что мы пережили это 😅",
     },
     {
-        "photo": "AgACAgIAAxkBAAIB72mQd30xj_dqCIkEFttoJ-Ki5mGTAAL0FWsbQQiISNF31MVmofHjAQADAgADeQADOgQ",
+        "photo": "AgACAgIAAxkBAAIB72mQd30xj_dqCIkEFttoJ-Ki5mGTAAL0FWsbQQiISNF31MVmofHjAQADAgADeQODOgQ",
         "caption": "Стил секси, снова на Бали) уже как пара и учились вместе проводить отдых более расслабленно) сделали кучу всего, о чем нам сказали окружающие. А сами в шоке что так можно",
     },
     {
@@ -184,27 +175,33 @@ moments = [
         "caption": "Снова целуемся у океана, сколько таких поцелуев было? Явно можно больше",
     },
 ]
+moments_bag = MOMENTS_ALL.copy()
+
+def get_random_moment(context: ContextTypes.DEFAULT_TYPE):
+    bag = context.user_data.get("moments_bag")
+    if not bag:
+        bag = MOMENTS_ALL.copy()
+    moment = random.choice(bag)
+    bag.remove(moment)
+    context.user_data["moments_bag"] = bag
+    return moment
 
 # ------------------------
 # ТЕКСТ "МОЕМУ МАЦО"
 # ------------------------
 MACO_TEXT = (
-    "Этот год с тобой я запомню как бесконечную любовную сцену с разными моментами. "
-    "Но я ощущаю какое это настоящее чувство. Моментов на самом деле было очень много. "
-    "Просто до чертиков, вся моя галерея просто кишит днями, о которых есть что рассказать: "
+    "Этот год с тобой я запомню как бесконечную любовную сцену с разными моментами. Но я ощущаю какое это настоящее чувство. "
+    "Моментов на самом деле было очень много. Просто до чертиков, вся моя галерея просто кишит днями, о которых есть что рассказать: "
     "будь это обычный день дома или поездка в другую часть света.\n\n"
-    "Если представить что наши отношения это карта, то точек за этот год получилось очень много. "
-    "Особенно эмоций, особенных эмоций.\n\n"
-    "Ты мое богатство, моя поддержка, мой человек. Моя сила, мое любопытство! "
-    "Мне нравится узнавать тебя разного и также нравится, что еще много я о тебе не знаю, "
-    "а что-то не узнаю никогда) в этом прелесть нашего союза, двух стремящихся и растущих людей. "
-    "Я вижу как ты старателен, я горжусь тобой и быть рядом с тобой мой выбор, пожалуй самый правильный. "
-    "Спасибо тебе за тебя. Спасибо тебе за нас\n\n"
+    "Если представить что наши отношения это карта, то точек за этот год получилось очень много. Особенно эмоций, особенных эмоций.\n\n"
+    "Ты мое богатство, моя поддержка, мой человек. Моя сила, мое любопытство! Мне нравится узнавать тебя разного и также нравится, "
+    "что еще много я о тебе не знаю, а что-то не узнаю никогда) в этом прелесть нашего союза, двух стремящихся и растущих людей. "
+    "Я вижу как ты старателен, я горжусь тобой и быть рядом с тобой мой выбор, пожалуй самый правильный. Спасибо тебе за тебя. Спасибо тебе за нас\n\n"
     "Я тебя люблю, Ю."
 )
 
 # ------------------------
-# UI
+# Keyboards
 # ------------------------
 def kb_start() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -222,7 +219,7 @@ def kb_no() -> InlineKeyboardMarkup:
         [[InlineKeyboardButton("извиняюсь, бес попутал", callback_data="back")]]
     )
 
-def kb_yes_menu() -> InlineKeyboardMarkup:
+def kb_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("Получить благодарность 💌", callback_data="thanks")],
@@ -232,15 +229,27 @@ def kb_yes_menu() -> InlineKeyboardMarkup:
     )
 
 # ------------------------
+# Helpers: always show menu
+# ------------------------
+async def send_menu(chat, text: str = None):
+    if text:
+        await chat.reply_text(text, reply_markup=kb_menu())
+    else:
+        await chat.reply_text("Выбирай 💌", reply_markup=kb_menu())
+
+# ------------------------
 # Handlers
 # ------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Ответь честно 😉", reply_markup=kb_start())
+    # Deep link support: /start valentine
+    if context.args and context.args[0] == "valentine":
+        await update.message.reply_text("Will you be my Valentine? 💘", reply_markup=kb_start())
+    else:
+        await update.message.reply_text("Ответь честно 😉", reply_markup=kb_start())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
     data = query.data
 
     if data == "valentine":
@@ -256,7 +265,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     if data == "yes":
-        await query.edit_message_text("Вот что тебя ждет:", reply_markup=kb_yes_menu())
+        await query.edit_message_text("Окей. Теперь выбирай:", reply_markup=kb_menu())
         return
 
     if data == "thanks":
@@ -268,16 +277,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         msg = random.choice(available)
         used.append(msg)
         context.user_data["used_thanks"] = used
-        await query.message.reply_text(msg)
+        await send_menu(query.message, msg)
         return
 
     if data == "moment":
-        moment = random.choice(moments)
+        moment = get_random_moment(context)
         await query.message.reply_photo(photo=moment["photo"], caption=moment["caption"])
+        await send_menu(query.message)
         return
 
     if data == "maco":
-        await query.message.reply_text(MACO_TEXT)
+        await send_menu(query.message, MACO_TEXT)
         return
 
 # ------------------------
